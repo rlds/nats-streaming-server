@@ -3435,13 +3435,13 @@ func TestClusteringUnableToContactPeer(t *testing.T) {
 	s1Opts.Clustering.RaftLogging = true
 	s1Opts.CustomLogger = logger
 	s1 := runServerWithOpts(t, s1Opts, nil)
-	// Due to the nature of this test, do not defer Shutdown here
+	defer s1.Shutdown()
 
 	s2Opts := getTestDefaultOptsForClustering("b", false)
 	s2Opts.Clustering.NodeID = "b"
 	s2Opts.Clustering.Peers = []string{"a"}
 	s2 := runServerWithOpts(t, s2Opts, nil)
-	// Due to the nature of this test, do not defer Shutdown here
+	defer s2.Shutdown()
 
 	getLeader(t, 10*time.Second, s1, s2)
 
@@ -3478,4 +3478,34 @@ func TestClusteringUnableToContactPeer(t *testing.T) {
 	}
 	checkShutdown(s2)
 	checkShutdown(s1)
+}
+
+func TestClusteringClientPings(t *testing.T) {
+	cleanupDatastore(t)
+	defer cleanupDatastore(t)
+	cleanupRaftLog(t)
+	defer cleanupRaftLog(t)
+
+	clientCheckTimeout = 150 * time.Millisecond
+	defer func() { clientCheckTimeout = defaultClientCheckTimeout }()
+
+	// For this test, use a central NATS server.
+	ns := natsdTest.RunDefaultServer()
+	defer ns.Shutdown()
+
+	// Configure first server
+	s1sOpts := getTestDefaultOptsForClustering("a", true)
+	s1 := runServerWithOpts(t, s1sOpts, nil)
+	defer s1.Shutdown()
+
+	// Configure second server.
+	s2sOpts := getTestDefaultOptsForClustering("b", false)
+	s2 := runServerWithOpts(t, s2sOpts, nil)
+	defer s2.Shutdown()
+
+	servers := []*StanServer{s1, s2}
+	// Wait for leader to be elected.
+	leader := getLeader(t, 10*time.Second, servers...)
+
+	testClientPings(t, leader)
 }

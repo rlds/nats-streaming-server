@@ -33,7 +33,7 @@ Usage: nats-streaming-server [options]
 
 Streaming Server Options:
     -cid, --cluster_id  <string>      Cluster ID (default: test-cluster)
-    -st,  --store <string>            Store type: MEMORY|FILE (default: MEMORY)
+    -st,  --store <string>            Store type: MEMORY|FILE|SQL (default: MEMORY)
           --dir <string>              For FILE store type, this is the root directory
     -mc,  --max_channels <int>        Max number of channels (0 for unlimited)
     -msu, --max_subs <int>            Max number of subscriptions per channel (0 for unlimited)
@@ -75,6 +75,7 @@ Streaming Server File Store Options:
     --file_slice_archive_script <string> Path to script to use if you want to archive a file slice being removed
     --file_fds_limit <int>               Store will try to use no more file descriptors than this given limit
     --file_parallel_recovery <int>       On startup, number of channels that can be recovered in parallel
+    --file_truncate_bad_eof <bool>       Truncate files for which there is an unexpected EOF on recovery, dataloss may occur
 
 Streaming Server SQL Store Options:
     --sql_driver <string>            Name of the SQL Driver ("mysql" or "postgres")

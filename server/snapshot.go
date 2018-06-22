@@ -294,7 +294,7 @@ func (r *raftFSM) Restore(snapshot io.ReadCloser) (retErr error) {
 func (r *raftFSM) restoreClientsFromSnapshot(serverSnap *spb.RaftSnapshot) error {
 	s := r.server
 	for _, sc := range serverSnap.Clients {
-		if _, err := s.clients.register(sc.ID, sc.HbInbox); err != nil {
+		if _, err := s.clients.register(sc); err != nil {
 			return err
 		}
 	}
@@ -321,9 +321,8 @@ func (r *raftFSM) restoreChannelsFromSnapshot(serverSnap *spb.RaftSnapshot, inNe
 			}
 			delete(channelsBeforeRestore, sc.Channel)
 		}
-		ackSubject := c.getAckSubject()
 		for _, ss := range sc.Subscriptions {
-			s.recoverOneSub(c, ackSubject, ss.State, nil, ss.AcksPending)
+			s.recoverOneSub(c, ss.State, nil, ss.AcksPending)
 		}
 	}
 	if !inNewRaftCall {

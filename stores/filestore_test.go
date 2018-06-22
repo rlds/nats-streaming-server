@@ -1160,7 +1160,7 @@ func TestFSAddClientError(t *testing.T) {
 	// Close the client file to cause error
 	fs.clientsFile.handle.Close()
 	// Should fail
-	if c, err := fs.AddClient("c1", "hbInbox"); err == nil {
+	if c, err := fs.AddClient(&spb.ClientInfo{ID: "c1", HbInbox: "hbInbox"}); err == nil {
 		t.Fatal("Expected error, got none")
 	} else if c != nil {
 		t.Fatalf("Should not have gotten a client back, got %v", c)
@@ -1370,7 +1370,7 @@ func (t *testReader) Read(p []byte) (n int, err error) {
 	}
 	copy(p, t.content[t.start:t.start+len(p)])
 	t.start += len(p)
-	return len(t.content), nil
+	return len(p), nil
 }
 
 func TestFSReadRecord(t *testing.T) {
@@ -1818,7 +1818,7 @@ func TestFSClientFileWithExtraZeros(t *testing.T) {
 	s := createDefaultFileStore(t)
 	defer s.Close()
 
-	c1, err := s.AddClient("me", "hbInbox")
+	c1, err := s.AddClient(&spb.ClientInfo{ID: "me", HbInbox: "hbInbox"})
 	if err != nil {
 		t.Fatalf("Error adding client: %v", err)
 	}
@@ -1853,7 +1853,7 @@ func TestFSClientFileWithExtraZeros(t *testing.T) {
 		t.Fatalf("Expected client %v, got %v", c1, rc)
 	}
 	// Add one more client
-	c2, err := s.AddClient("me2", "hbInbox2")
+	c2, err := s.AddClient(&spb.ClientInfo{ID: "me2", HbInbox: "hbInbox2"})
 	if err != nil {
 		t.Fatalf("Error adding client: %v", err)
 	}
@@ -1916,4 +1916,32 @@ func TestFSDeleteChannel(t *testing.T) {
 	// Should be able to recreate same channel
 	storeCreateChannel(t, s, "foo")
 	checkDir("foo", true)
+}
+
+func TestFSTruncateOnUnexpectedEOFLock(t *testing.T) {
+	cleanupFSDatastore(t)
+	defer cleanupFSDatastore(t)
+
+	// When opening with TruncateUnexpectedEOF(true), the store
+	// will create a special file to know that it was last opened
+	// with that. We want the user to no use that option as
+	// a default param, so a restart of the store should not have
+	// it. Only then that special file will be deleted.
+	s := createDefaultFileStore(t, TruncateUnexpectedEOF(true))
+	s.Close()
+
+	// Restarting the server with that option should fail
+	s, err := NewFileStore(testLogger, testFSDefaultDatastore, nil, TruncateUnexpectedEOF(true))
+	if err == nil || s != nil {
+		s.Close()
+		t.Fatalf("Expected error opening the store")
+	}
+
+	// Open without the option should work ok.
+	s, _ = openDefaultFileStore(t)
+	s.Close()
+
+	// Now one can use the option again
+	s, _ = openDefaultFileStore(t, TruncateUnexpectedEOF(true))
+	s.Close()
 }
